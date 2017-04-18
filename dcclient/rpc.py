@@ -26,7 +26,8 @@ class RPC:
     """ RPC class. Used to connect to the client and pass the XML files.
     """
     def __init__(self, username, password, host, method):
-        self.auth = (username, password)
+        self.username = username
+	self.password = password
         self.host = host
         self.method = method
 
@@ -58,7 +59,7 @@ class RPC:
         m = MultipartEncoder(fields=fields, boundary='-----boundary-----')
         r = requests.post(url=url,
                           data=m,
-                          auth=self.auth,
+                          auth=(self.username, self.password),
                           headers={'Content-type': m.content_type},
                           verify=False)
 
