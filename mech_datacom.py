@@ -12,7 +12,7 @@
 # implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from oslo.config import cfg
+from oslo_config import cfg
 
 from neutron.plugins.ml2 import driver_api as api
 import neutron.db.api as db
