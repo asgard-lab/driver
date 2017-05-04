@@ -20,7 +20,7 @@ from StringIO import StringIO as sio
 import os
 from requests_toolbelt import MultipartEncoder
 import requests
-import pdb
+#import pdb
 
 
 class RPC:
@@ -51,7 +51,7 @@ class RPC:
 
         run_data = ziped.getvalue()
         ziped.close()
-	pdb.set_trace()
+#	pdb.set_trace()
 
         fields = (('page', 'file_upload'),
                   ('running_part', '1'),
