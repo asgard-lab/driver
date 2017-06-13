@@ -17,7 +17,11 @@
 """
 import data_structures
 import neutron.plugins.ml2.drivers.datacom.utils as utils
+from oslo_log import log as logger
 
+LOG = logger.getLogger(__name__)
+
+DEBUG = True
 
 class ManagedXml:
     def __init__(self):
@@ -36,19 +40,33 @@ class ManagedXml:
     def add_vlan(self, vid, name='', ports=[]):
         """ This method adds a vlan to the XML an returns it's instance.
         """
-
+        if DEBUG:
+            LOG.info("Tipo do Name %s", type(name)) 
+            LOG.info("Comeco do Metodo")
         if self.find_vlan(vid):
             raise utils.XMLVlanError("Vlan already exists "+str(vid))
-
+        if DEBUG:
+            LOG.info("Depois do find_vlan")
         vlan = data_structures.VlanGlobal(vid)
-
+        if DEBUG:
+            LOG.info("Passou aqui depois da atribuicao da vlan")
         if name:
+            name = str(name)
             vlan.name = name
-
+        if DEBUG:    
+            LOG.info("Depois do name")
         if ports:
             vlan.ports = data_structures.Pbits(ports)
 
+        if DEBUG:          
+            for i in self.xml.vlans:
+                LOG.info("Add_Vlan, antes do append %s", str(i.vid) )
+
         self.xml.vlans.append(vlan)
+
+        if DEBUG:
+            for i in self.xml.vlans:
+                LOG.info("Add_Vlan, logo apos o append %s", str(i.vid) )
 
         return vlan
 

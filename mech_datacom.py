@@ -21,10 +21,18 @@ from dcclient.dcclient import Manager
 from dcclient.xml_manager.data_structures import Pbits
 from db.models import DatacomNetwork, DatacomPort
 
+#import pdb
+
+from oslo_log import log as logger
+
+LOG = logger.getLogger(__name__)
+
+
 import config
 
 config.setup_config()
 
+DEBUG = True
 
 class DatacomDriver(api.MechanismDriver):
     """    """
@@ -35,7 +43,7 @@ class DatacomDriver(api.MechanismDriver):
     def initialize(self):
         self.dcclient.setup()
         session = db.get_session()
-        networks = session.query(DatacomNetwork.vlan,
+        self.networks = session.query(DatacomNetwork.vlan,
                                  DatacomNetwork.name).all()
 
         ports = session.query(DatacomPort.switch,
@@ -55,7 +63,7 @@ class DatacomDriver(api.MechanismDriver):
         for vlan in interfaces:
             interfaces[vlan] = self._ports_to_dict(interfaces[vlan])
 
-        self.dcclient.create_network_bulk(networks, interfaces=interfaces)
+        self.dcclient.create_network_bulk(self.networks, interfaces=interfaces)
 
     def _find_ports(self, compute):
         """Returns dictionary with the switches containing the compute,
@@ -92,11 +100,23 @@ class DatacomDriver(api.MechanismDriver):
                 vlan=int(context.network_segments[0]['segmentation_id']),
                 name=context.current['name'])
             session.add(dm_network)
+        self.networks = session.query(DatacomNetwork.vlan,
+                                        DatacomNetwork.name).all()
+        if DEBUG:
+            LOG.info("Dentro do Mech_Datacom CreateNetworkPrecommit")
+            for i in self.dcclient.switches_dic['192.168.0.25']['xml'].xml.vlans:
+                LOG.info("Vlans %s", str(i.vid))
 
     def create_network_postcommit(self, context):
         """After transaction is done."""
         vlan = int(context.network_segments[0]['segmentation_id'])
-        self.dcclient.create_network(vlan, name=str(context.current['name']))
+        #self.dcclient.create_network(vlan, name=str(context.current['name']))
+        self.dcclient.create_network_bulk(self.networks)
+        if DEBUG:
+            LOG.info("Dentro do Mech_Datacom CreateNetworkPostcommit")
+            for i in self.dcclient.switches_dic['192.168.0.25']['xml'].xml.vlans:
+                LOG.info("Vlans %s", str(i.vid))
+
 
     def update_network_precommit(self, context):
         """Within transaction."""
@@ -112,6 +132,8 @@ class DatacomDriver(api.MechanismDriver):
         vlan = int(context.network_segments[0]['segmentation_id'])
         with session.begin(subtransactions=True):
             query = session.query(DatacomNetwork)
+            self.networks = session.query(DatacomNetwork.vlan,
+                                            DatacomNetwork.name).all()
             resultset = query.filter(DatacomNetwork.vlan == vlan)
             dcnetwork = resultset.first()
             session.delete(dcnetwork)
@@ -119,6 +141,7 @@ class DatacomDriver(api.MechanismDriver):
     def delete_network_postcommit(self, context):
         """After transaction is done."""
         vlan = int(context.network_segments[0]['segmentation_id'])
+        self.dcclient.fill_dic(self.networks)
         self.dcclient.delete_network(vlan)
 
     def create_port_precommit(self, context):
@@ -130,8 +153,14 @@ class DatacomDriver(api.MechanismDriver):
         pass
 
     def update_port_precommit(self, context):
+	#pdb.set_trace()
         """Within transaction."""
-        if context.bound_segment is not None and str(context.bound_segment['network_type']) == "vxlan" and \
+        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vxlan" and \
+                context.current['device_owner'].startswith('compute'):
+            ports = self._find_ports(context.host)
+            if ports:
+                self._add_ports_to_db(ports, context)
+	elif context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
                 context.current['device_owner'].startswith('compute'):
             ports = self._find_ports(context.host)
             if ports:
@@ -165,7 +194,7 @@ class DatacomDriver(api.MechanismDriver):
 
     def delete_port_precommit(self, context):
         """Within transaction."""
-        if context.bound_segment is not None and str(context.bound_segment['network_type']) == "vxlan" and \
+        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vxlan" and \
                 context.current['device_owner'].startswith('compute'):
             ports = self._find_ports(context.host)
             if ports:
@@ -181,7 +210,7 @@ class DatacomDriver(api.MechanismDriver):
 
     def delete_port_postcommit(self, context):
         """After transaction."""
-        if context.bound_segment is not None and str(context.bound_segment['network_type']) == "vxlan" and \
+        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vxlan" and \
                 context.current['device_owner'].startswith('compute'):
             ports = self._find_ports(context.host)
             delete_interfaces = {}
