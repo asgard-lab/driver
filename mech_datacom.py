@@ -135,8 +135,7 @@ class DatacomDriver(api.MechanismDriver):
         vlan = int(context.network_segments[0]['segmentation_id'])
         with session.begin(subtransactions=True):
             query = session.query(DatacomNetwork)
-            self.networks = session.query(DatacomNetwork.vlan,
-                                            DatacomNetwork.name).all()
+            self.query_bd(session)
             resultset = query.filter(DatacomNetwork.vlan == vlan)
             dcnetwork = resultset.first()
             session.delete(dcnetwork)
@@ -144,7 +143,7 @@ class DatacomDriver(api.MechanismDriver):
     def delete_network_postcommit(self, context):
         """After transaction is done."""
         vlan = int(context.network_segments[0]['segmentation_id'])
-        self.dcclient.fill_dic(self.networks)
+        self.dcclient.fill_dic(self.networks, interfaces=self.interfaces)
         self.dcclient.delete_network(vlan)
 
     def create_port_precommit(self, context):
