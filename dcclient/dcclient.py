@@ -29,8 +29,6 @@ LOG = logger.getLogger(__name__)
 
 DEBUG = True
 
-#DEBUG = False
-
 
 class Manager:
     def __init__(self):
@@ -60,7 +58,9 @@ class Manager:
             # get each global configuration, when not mentioned in the specific
             for field in cfg.CONF.ml2_datacom:
                 if field not in sw_dic:
+                    LOG.info("field: %s", str(field))
                     sw_dic[field] = cfg.CONF.ml2_datacom[field]
+                    LOG.info("sw_dic %s", str(cfg.CONF.ml2_datacom[field]))
 
             sw_dic['rpc'] = rpc.RPC(str(sw_dic['dm_username']),
                                     str(sw_dic['dm_password']),
@@ -120,7 +120,7 @@ class Manager:
         """ Creates multiple networks on the switch, also creating the ports
             associated.
         """
-        self.fill_dic(networks, interfaces) 
+        self.fill_dic(networks, interfaces=interfaces) 
         self._update()
 
     def delete_network(self, vlan):
@@ -154,6 +154,11 @@ class Manager:
         and port is not already there.
         """
         self._update_port_xml(vlan, ports)
+        if DEBUG:
+            LOG.info("Dentro do update_port no dcclient")
+            LOG.info("Vlan: %s", str(vlan))
+            for i in ports:
+                LOG.info("Portas no dicionario: %s", str(ports[i]))
         self._update()
         # needs other exception
 

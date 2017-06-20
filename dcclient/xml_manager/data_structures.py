@@ -7,7 +7,7 @@ from oslo_log import log as logger
 
 LOG = logger.getLogger(__name__)
 
-DEBUG = True
+DEBUG = False
 
 class Pbits(object):
     """ Class pbits represents bitmasks (usually from ports)
@@ -277,3 +277,4 @@ if __name__ == '__main__':
     print xml
 
     c = CfgData()
+    c.vlans = [vlan]
