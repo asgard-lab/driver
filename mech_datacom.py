@@ -32,7 +32,8 @@ import config
 
 config.setup_config()
 
-DEBUG = True
+DEBUG = False
+DEBUG2 = True
 
 class DatacomDriver(api.MechanismDriver):
     """    """
@@ -133,6 +134,7 @@ class DatacomDriver(api.MechanismDriver):
         """Within transaction."""
         session = db.get_session()
         vlan = int(context.network_segments[0]['segmentation_id'])
+        LOG.info("Vlan value: %s", str(vlan))
         with session.begin(subtransactions=True):
             query = session.query(DatacomNetwork)
             self.query_bd(session)
@@ -162,16 +164,11 @@ class DatacomDriver(api.MechanismDriver):
             if context.top_bound_segment is not None:
                 LOG.info("Network type: %s", str(context.top_bound_segment['network_type']))
             LOG.info("Device Owner: %s", context.current['device_owner'])
-        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vxlan" and \
-                context.current['device_owner'].startswith('compute'):
-            ports = self._find_ports(context.host)
-            if ports:
-                self._add_ports_to_db(ports, context)
         if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
-                context.current['device_owner'].startswith('compute'): 
-            if DEBUG:
-                LOG.info("Dentro do if do vlan")
-                LOG.info("Nome do host: %s", context.host)
+                context.current['device_owner'].startswith('compute') and str(context.current['status']) == "ACTIVE":
+            session = db.get_session()    
+            self.query_bd(session)
+            self.dcclient.fill_dic(self.networks, interfaces=self.interfaces)    
             ports = self._find_ports(context.host)
             if ports:
                 self._add_ports_to_db(ports, context)
@@ -193,22 +190,23 @@ class DatacomDriver(api.MechanismDriver):
 
     def update_port_postcommit(self, context):
         """After transaction."""
-        session = db.get_session()
-        vlan = int(context.network.network_segments[0]['segmentation_id'])
-        query = session.query(DatacomPort.switch, DatacomPort.interface)
-        r_set = query.filter_by(neutron_port_id=context.current['id']).all()
-#        self.networks = session.query(DatacomNetwork.vlan,
-#                                        DatacomNetwork.name).all()
+        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
+                context.current['device_owner'].startswith('compute') and str(context.current['status']) == "ACTIVE": 
+            session = db.get_session()
+            vlan = int(context.network.network_segments[0]['segmentation_id'])
+            query = session.query(DatacomPort.switch, DatacomPort.interface)
+            r_set = query.filter_by(neutron_port_id=context.current['id']).all()
 
-#        self.dcclient.fill_dic(self.networks)
+            interfaces = self._ports_to_dict(r_set)
 
-        interfaces = self._ports_to_dict(r_set)
-
-        self.dcclient.update_port(vlan, interfaces)
+            self.dcclient.update_port(vlan, interfaces)
 
     def delete_port_precommit(self, context):
         """Within transaction."""
-        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vxlan" and \
+        if DEBUG2:
+            LOG.info("Dentro do DeletePortPrecommit")
+            LOG.info("Device Owner dentro do delete_port: %s", str(context.current['device_owner']))
+        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
                 context.current['device_owner'].startswith('compute'):
             ports = self._find_ports(context.host)
             if ports:
@@ -217,14 +215,14 @@ class DatacomDriver(api.MechanismDriver):
                     for ip in ports:
                         for port in ports[ip]:
                             query = session.query(DatacomPort)
-                            resultset = query.filter_by(switch=ip, interface=int(port.split("/")[1]),
+                            resultset = query.filter_by(switch=ip, interface=int(port[0].split("/")[1]),
                                                         neutron_port_id=context.current['id'])
                             dcport = resultset.first()
                             session.delete(dcport)
 
     def delete_port_postcommit(self, context):
         """After transaction."""
-        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vxlan" and \
+        if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
                 context.current['device_owner'].startswith('compute'):
             ports = self._find_ports(context.host)
             delete_interfaces = {}
@@ -234,14 +232,14 @@ class DatacomDriver(api.MechanismDriver):
                     for port in ports[ip]:
                         query = session.query(DatacomPort)
                         resultset = query.filter_by(switch=ip,
-                                                    interface=int(port.split("/")[1]),
+                                                    interface=int(port[0].split("/")[1]),
                                                     neutron_port_id=context.current['id'])
                         dcport = resultset.first()
                         if not dcport:
                             vlan = int(context.network.network_segments[0]['segmentation_id'])
                             switch = str(ip)
-                            interface = int(port.split("/")[1])
+                            interface = int(port[0].split("/")[1])
                             if switch not in delete_interfaces:
                                 delete_interfaces[switch] = []
                             delete_interfaces[switch].append(interface)
-                self.dcclient.delete_port(vlan, delete_interfaces)
+                            self.dcclient.delete_port(vlan, delete_interfaces)

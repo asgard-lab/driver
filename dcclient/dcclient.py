@@ -157,6 +157,7 @@ class Manager:
         if DEBUG:
             LOG.info("Dentro do update_port no dcclient")
             LOG.info("Vlan: %s", str(vlan))
+            LOG.info("XML no update port: %s", self.switches_dic['192.168.0.25']['xml'].tostring())
             for i in ports:
                 LOG.info("Portas no dicionario: %s", str(ports[i]))
         self._update()
@@ -168,6 +169,8 @@ class Manager:
         try:
             for switch in ports:
                 xml = self.switches_dic[switch]['xml']
+                if DEBUG:
+                    LOG.info("XML no update port_xml: %s", self.switches_dic['192.168.0.25']['xml'].tostring())
                 xml.add_ports_to_vlan(vlan, ports[switch])
         except:
             LOG.info("Trying to add ports to nonexistant network %d:", vlan)
