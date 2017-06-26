@@ -21,6 +21,8 @@ from dcclient.dcclient import Manager
 from dcclient.xml_manager.data_structures import Pbits
 from db.models import DatacomNetwork, DatacomPort
 
+from sqlalchemy import func
+
 #import pdb
 
 from oslo_log import log as logger
@@ -34,6 +36,7 @@ config.setup_config()
 
 DEBUG = False
 DEBUG2 = True
+DEBUG3 = True
 
 class DatacomDriver(api.MechanismDriver):
     """    """
@@ -54,7 +57,14 @@ class DatacomDriver(api.MechanismDriver):
                                  DatacomNetwork.name).all()
         self.ports = session.query(DatacomPort.switch,
                               DatacomPort.interface,
-                              DatacomNetwork.vlan).all()
+                              DatacomNetwork.vlan).filter(DatacomPort.network_id == DatacomNetwork.id).all()
+        porta = session.query(DatacomPort.switch, DatacomPort.interface, DatacomNetwork.vlan).filter(DatacomPort.network_id == DatacomNetwork.id).all()
+        if DEBUG3:
+            LOG.info("Porta: %s", str(porta))
+            #rows = session.query(func.count(DatacomPort.id)).scalar()
+            #LOG.info("Quantidade de linhas na tabela: %d", rows)
+            LOG.info("No query_bd - informacao das portas do bd: %s",str(self.ports))
+            LOG.info("informacao das redes: %s", str(self.networks))
         self.interfaces = {}
 
         # first set up the dictionary with each port list
@@ -95,6 +105,7 @@ class DatacomDriver(api.MechanismDriver):
                     dcport = DatacomPort(network_id=dcnetwork.id, switch=ip, interface=int(port[0].split("/")[1]),
                                          neutron_port_id=context.current['id'])
                     session.add(dcport)
+                    session.flush()
 
     def create_network_precommit(self, context):
         """Within transaction."""
@@ -166,6 +177,8 @@ class DatacomDriver(api.MechanismDriver):
             LOG.info("Device Owner: %s", context.current['device_owner'])
         if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
                 context.current['device_owner'].startswith('compute') and str(context.current['status']) == "ACTIVE":
+            if DEBUG3:
+                LOG.info("No update_port_precommit")
             session = db.get_session()    
             self.query_bd(session)
             self.dcclient.fill_dic(self.networks, interfaces=self.interfaces)    
