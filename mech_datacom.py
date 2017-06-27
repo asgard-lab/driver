@@ -22,6 +22,7 @@ from dcclient.xml_manager.data_structures import Pbits
 from db.models import DatacomNetwork, DatacomPort
 
 from sqlalchemy import func
+from sqlalchemy import exists
 
 #import pdb
 
@@ -99,13 +100,19 @@ class DatacomDriver(api.MechanismDriver):
             query = session.query(DatacomNetwork)
             resultset = query.filter(DatacomNetwork.vlan == vlan)
             dcnetwork = resultset.first()
-            for ip in ports:
-                for port in ports[ip]:
-                    LOG.info("Porta: %s", str(port))
-                    dcport = DatacomPort(network_id=dcnetwork.id, switch=ip, interface=int(port[0].split("/")[1]),
+            ret = session.query(exists().where(DatacomPort.neutron_port_id==context.current['id'])).scalar()
+            #queryTeste = session.query(DatacomPort)
+            #resultQT = query.filter(DatacomPort.neutron_port_id=context.current['id'])
+            #LOG.info("Dentro do add_ports_to_db: %s", str(resultQT))
+            LOG.info("Dentro do add_ports_to_db, qtde de portas: %d", ret)
+            if ret == 0:
+                for ip in ports:
+                    for port in ports[ip]:
+                        LOG.info("Porta: %s", str(port))
+                        dcport = DatacomPort(network_id=dcnetwork.id, switch=ip, interface=int(port[0].split("/")[1]),
                                          neutron_port_id=context.current['id'])
-                    session.add(dcport)
-                    session.flush()
+                        session.add(dcport)
+                        session.flush()
 
     def create_network_precommit(self, context):
         """Within transaction."""
