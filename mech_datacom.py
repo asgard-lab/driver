@@ -242,12 +242,15 @@ class DatacomDriver(api.MechanismDriver):
 
     def delete_port_postcommit(self, context):
         """After transaction."""
+
         if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
                 context.current['device_owner'].startswith('compute'):
             ports = self._find_ports(context.host)
             delete_interfaces = {}
             if ports:
                 session = db.get_session()
+                self.query_bd(session)
+                self.dcclient.fill_dic(self.networks, interfaces=self.interfaces)    
                 for ip in ports:
                     for port in ports[ip]:
                         query = session.query(DatacomPort)
@@ -255,7 +258,18 @@ class DatacomDriver(api.MechanismDriver):
                                                     interface=int(port[0].split("/")[1]),
                                                     neutron_port_id=context.current['id'])
                         dcport = resultset.first()
-                        if not dcport:
+                        query2 = session.query(DatacomNetwork.id)
+                        result = query2.filter_by(vlan=int(context.network.network_segments[0]['segmentation_id']))
+
+                        networkId = result.first()
+                        if networkId:
+                            LOG.info("Resultado networkID: %s",networkId[0])
+                        result2 = query.filter_by(switch=ip,
+                                                    interface=int(port[0].split("/")[1]),
+                                                    network_id=str(networkId[0])).first()
+                        if result2:
+                            LOG.info("result2: %s", str(result2))                            
+                        if not dcport and not result2:
                             vlan = int(context.network.network_segments[0]['segmentation_id'])
                             switch = str(ip)
                             interface = int(port[0].split("/")[1])
