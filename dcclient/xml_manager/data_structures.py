@@ -191,8 +191,8 @@ class VlanGlobal(object):
         if self.name:
             ET.SubElement(xml, "name").text = self.name
         if self.ports:
-            pbmp_untagged = ET.SubElement(xml, "pbmp_untagged", {"id0": "0"})
-            pbmp_untagged.append(self.ports.as_xml())
+            pbmp_tagged = ET.SubElement(xml, "pbmp_tagged", {"id0": "0"})
+            pbmp_tagged.append(self.ports.as_xml())
         return xml
 
     def as_xml_text(self):
