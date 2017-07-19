@@ -22,7 +22,7 @@ class Vlan:
 
 class Ports:
     MAX_PORTS = 2**30 - 1
-    MIN_PORTS = 1
+    MIN_PORTS = 0
 
 
 class ExceptionTemplate(Exception):

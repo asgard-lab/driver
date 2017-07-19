@@ -21,7 +21,7 @@ from oslo_log import log as logger
 
 LOG = logger.getLogger(__name__)
 
-DEBUG = False
+DEBUG = True
 
 class ManagedXml:
     def __init__(self):

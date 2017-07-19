@@ -113,7 +113,7 @@ class VlanGlobal(object):
         if ports:
             self.ports = ports
         else:
-            self.ports = Pbits(1)
+            self.ports = Pbits(0)
         self.name = name
         self.active = active
 
