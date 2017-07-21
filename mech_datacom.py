@@ -91,6 +91,12 @@ class DatacomDriver(api.MechanismDriver):
                     ports[switch] = [switches_dic[switch][compute]]
                 else:
                     ports[switch].append(switches_dic[switch][compute])
+
+        for switch in switches_dic:
+            for key in switches_dic[switch]:
+                if switch in ports:
+                    if key.startswith('trunkPort'):
+                        ports[switch].append(switches_dic[switch][key])
         return ports
 
     def _add_ports_to_db(self, ports, context):
@@ -190,6 +196,7 @@ class DatacomDriver(api.MechanismDriver):
             self.query_bd(session)
             self.dcclient.fill_dic(self.networks, interfaces=self.interfaces)    
             ports = self._find_ports(context.host)
+            LOG.info("Informacao das portas: %s", str(ports))
             if ports:
                 self._add_ports_to_db(ports, context)
 
