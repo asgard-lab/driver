@@ -27,8 +27,6 @@ import json
 
 LOG = logger.getLogger(__name__)
 
-DEBUG = True
-
 
 class Manager:
     def __init__(self):
@@ -58,9 +56,7 @@ class Manager:
             # get each global configuration, when not mentioned in the specific
             for field in cfg.CONF.ml2_datacom:
                 if field not in sw_dic:
-                    LOG.info("field: %s", str(field))
                     sw_dic[field] = cfg.CONF.ml2_datacom[field]
-                    LOG.info("sw_dic %s", str(cfg.CONF.ml2_datacom[field]))
 
             sw_dic['rpc'] = rpc.RPC(str(sw_dic['dm_username']),
                                     str(sw_dic['dm_password']),
@@ -69,10 +65,6 @@ class Manager:
 
             sw_dic['xml'] = ManagedXml()
             self.switches_dic[switch] = sw_dic
-            if DEBUG:
-                LOG.info("Dicionario na Inicializacao:")
-                LOG.info("Atributo XML %s", self.switches_dic[switch]['xml'].tostring())
-                LOG.info("Dicionario: %s ", str(self.switches_dic[switch]))
 
     def fill_dic(self, networks, interfaces={}):
         for switch in self.switches_dic:
@@ -98,23 +90,10 @@ class Manager:
         """
         try:
             for switch in self.switches_dic:
-                if DEBUG:
-                    LOG.info("Switch no qual a rede esta sendo adicionada: %s", switch)
                 xml = self.switches_dic[switch]['xml']
-                if DEBUG:
-                    LOG.info("Inside CreateNetwork: ")
-                    LOG.info("XML antes da criacao da Rede %s", self.switches_dic[switch]['xml'].tostring())
-                    #LOG.info("Dicionario antes da criacao da rede %s ", str(self.switches_dic[switch]))
-					#LOG.info("Dicionario antes da criacao da Rede %s", xml.tostring())
-                    LOG.info("Valor da vlan e do nome %s %s", vlan, name)
                 xml.add_vlan(vlan, name=name)
-                #self.switches_dic[switch]['xml'] = xml
-				#self.switches_dic[switch].update({'xml': xml})
-                if DEBUG:
-                    LOG.info("XML depois da criacao da Rede %s", self.switches_dic[switch]['xml'].tostring())
-                    LOG.info("Dicionario depois %s ", str(self.switches_dic[switch]))
         except:
-            LOG.info("Trying to create already existing network %d:", vlan)
+            LOG.info("Trying to create already existing network: %d", vlan)
 
     def create_network_bulk(self, networks, interfaces={}):
         """ Creates multiple networks on the switch, also creating the ports
@@ -127,24 +106,12 @@ class Manager:
         """ Delete a network on the switch, if it exsists
             Actually just sets it to inactive
         """
-        if DEBUG:
-            LOG.info("Antes do DELETE  %s", str(self.switches_dic))
-            LOG.info("Antes do DELETE  %s", self.switches_dic['192.168.0.25']['xml'].tostring())
 
         try:
             for switch in self.switches_dic:
-                if DEBUG:
-                    LOG.info("Switch no qual a rede esta sendo deletada: %s", switch)
                 xml = self.switches_dic[switch]['xml']
                 xml = self.switches_dic[switch]['xml']
-                if DEBUG:
-                    LOG.info("Inside deletenetwork")
-                    LOG.info("XML antes da delecao da Rede %s", self.switches_dic[switch]['xml'].tostring())
-				#LOG.info("Before remove vlan %s", xml.tostring())
                 xml.remove_vlan(vlan)
-                if DEBUG:
-                    LOG.info("XML depois da delecao da Rede %s", self.switches_dic[switch]['xml'].tostring())
-				#LOG.info("After remove vlan %s", xml.tostring())
             self._update()
         except:
             LOG.info("Trying to delete inexisting vlan: %d", vlan)
@@ -154,12 +121,6 @@ class Manager:
         and port is not already there.
         """
         self._update_port_xml(vlan, ports)
-        if DEBUG:
-            LOG.info("Dentro do update_port no dcclient")
-            LOG.info("Vlan: %s", str(vlan))
-            LOG.info("XML no update port: %s", self.switches_dic['192.168.0.25']['xml'].tostring())
-            for i in ports:
-                LOG.info("Portas no dicionario: %s", str(ports[i]))
         self._update()
         # needs other exception
 
@@ -169,8 +130,6 @@ class Manager:
         try:
             for switch in ports:
                 xml = self.switches_dic[switch]['xml']
-                if DEBUG:
-                    LOG.info("XML no update port_xml: %s", self.switches_dic['192.168.0.25']['xml'].tostring())
                 xml.add_ports_to_vlan(vlan, ports[switch])
         except:
             LOG.info("Trying to add ports to nonexistant network %d:", vlan)

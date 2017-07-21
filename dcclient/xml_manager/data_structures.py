@@ -3,11 +3,6 @@
 
 import xml.etree.ElementTree as ET
 import neutron.plugins.ml2.drivers.datacom.utils as utils
-from oslo_log import log as logger
-
-LOG = logger.getLogger(__name__)
-
-DEBUG = False
 
 class Pbits(object):
     """ Class pbits represents bitmasks (usually from ports)
@@ -178,9 +173,6 @@ class VlanGlobal(object):
     def as_xml(self):
         """ Method that returns the xml form of the object
         """
-        if DEBUG:
-            LOG.info("Nome: %s", str(self.name))
-            LOG.info("Valor do active: %s",str(self.active))
         xml = ET.Element("vlan_global")
         xml.attrib["id0"] = str(self.vid)
         ET.SubElement(xml, "vid").text = str(self.vid)
@@ -225,17 +217,11 @@ class CfgData(object):
         # first check if every member of the list is a vlan
         for vlan in vlans:
             assert isinstance(vlan, VlanGlobal)
-        if DEBUG:
-            LOG.info("Esta dento do setter do vlans do Cfg_data")
         # now create the list and add each vlan
         self._vlans = []
 
         for vlan in vlans:
             self._vlans.append(vlan)
-            LOG.info("Vlans: %s", self.vlans[vlan].as_xml_text())
-        if DEBUG:
-            for i in self._vlans:
-                LOG.info("Lista de vlans dentro do setter %s", str(i.vid) )
 
 
     @vlans.deleter
@@ -247,10 +233,6 @@ class CfgData(object):
         xml = ET.Element("cfg_data")
         for vlan in self.vlans:
             xml.append(vlan.as_xml())
-        if DEBUG:
-            LOG.info("Vlans dentro do as_xml do CFG_data")
-            for vlan in self.vlans:
-                LOG.info("%s", str(vlan.vid))
         return xml
 
     def as_xml_text(self):
@@ -261,20 +243,3 @@ class Interface(object):
     """ Class interface represents a switch interface
     """
     pass
-
-
-if __name__ == '__main__':
-    vlan = VlanGlobal(42)
-    ports = Pbits([1, 3, 4])
-    vlan_name = "vlan_test"
-
-    vlan.active = True
-    vlan.ports = ports
-    vlan.name = vlan_name
-
-    xml = vlan.as_xml_text()
-
-    print xml
-
-    c = CfgData()
-    c.vlans = [vlan]

@@ -24,20 +24,9 @@ from db.models import DatacomNetwork, DatacomPort
 from sqlalchemy import func
 from sqlalchemy import exists
 
-#import pdb
-
-from oslo_log import log as logger
-
-LOG = logger.getLogger(__name__)
-
-
 import config
 
 config.setup_config()
-
-DEBUG = False
-DEBUG2 = True
-DEBUG3 = True
 
 class DatacomDriver(api.MechanismDriver):
     """    """
@@ -60,12 +49,6 @@ class DatacomDriver(api.MechanismDriver):
                               DatacomPort.interface,
                               DatacomNetwork.vlan).filter(DatacomPort.network_id == DatacomNetwork.id).all()
         porta = session.query(DatacomPort.switch, DatacomPort.interface, DatacomNetwork.vlan).filter(DatacomPort.network_id == DatacomNetwork.id).all()
-        if DEBUG3:
-            LOG.info("Porta: %s", str(porta))
-            #rows = session.query(func.count(DatacomPort.id)).scalar()
-            #LOG.info("Quantidade de linhas na tabela: %d", rows)
-            LOG.info("No query_bd - informacao das portas do bd: %s",str(self.ports))
-            LOG.info("informacao das redes: %s", str(self.networks))
         self.interfaces = {}
 
         # first set up the dictionary with each port list
@@ -107,14 +90,9 @@ class DatacomDriver(api.MechanismDriver):
             resultset = query.filter(DatacomNetwork.vlan == vlan)
             dcnetwork = resultset.first()
             ret = session.query(exists().where(DatacomPort.neutron_port_id==context.current['id'])).scalar()
-            #queryTeste = session.query(DatacomPort)
-            #resultQT = query.filter(DatacomPort.neutron_port_id=context.current['id'])
-            #LOG.info("Dentro do add_ports_to_db: %s", str(resultQT))
-            LOG.info("Dentro do add_ports_to_db, qtde de portas: %d", ret)
             if ret == 0:
                 for ip in ports:
                     for port in ports[ip]:
-                        LOG.info("Porta: %s", str(port))
                         dcport = DatacomPort(network_id=dcnetwork.id, switch=ip, interface=int(port[0].split("/")[1]),
                                          neutron_port_id=context.current['id'])
                         session.add(dcport)
@@ -129,22 +107,12 @@ class DatacomDriver(api.MechanismDriver):
                 vlan=int(context.network_segments[0]['segmentation_id']),
                 name=context.current['name'])
             session.add(dm_network)
-        if DEBUG:
-            LOG.info("Dentro do Mech_Datacom CreateNetworkPrecommit")
-            for i in self.dcclient.switches_dic['192.168.0.25']['xml'].xml.vlans:
-                LOG.info("Vlans %s", str(i.vid))
 
     def create_network_postcommit(self, context):
         """After transaction is done."""
         vlan = int(context.network_segments[0]['segmentation_id'])
-        #self.dcclient.create_network(vlan, name=str(context.current['name']))
         self.dcclient.fill_dic(self.networks, interfaces=self.interfaces)
         self.dcclient.create_network(vlan, name=str(context.current['name']))
-        if DEBUG:
-            LOG.info("Dentro do Mech_Datacom CreateNetworkPostcommit")
-            for i in self.dcclient.switches_dic['192.168.0.25']['xml'].xml.vlans:
-                LOG.info("Vlans %s", str(i.vid))
-
 
     def update_network_precommit(self, context):
         """Within transaction."""
@@ -158,7 +126,6 @@ class DatacomDriver(api.MechanismDriver):
         """Within transaction."""
         session = db.get_session()
         vlan = int(context.network_segments[0]['segmentation_id'])
-        LOG.info("Vlan value: %s", str(vlan))
         with session.begin(subtransactions=True):
             query = session.query(DatacomNetwork)
             self.query_bd(session)
@@ -181,22 +148,14 @@ class DatacomDriver(api.MechanismDriver):
         pass
 
     def update_port_precommit(self, context):
-	#pdb.set_trace()
         """Within transaction."""
-        if DEBUG:
-            LOG.info("Dentro do update port precommit")
-            if context.top_bound_segment is not None:
-                LOG.info("Network type: %s", str(context.top_bound_segment['network_type']))
-            LOG.info("Device Owner: %s", context.current['device_owner'])
+
         if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
                 context.current['device_owner'].startswith('compute') and str(context.current['status']) == "ACTIVE":
-            if DEBUG3:
-                LOG.info("No update_port_precommit")
             session = db.get_session()    
             self.query_bd(session)
             self.dcclient.fill_dic(self.networks, interfaces=self.interfaces)    
             ports = self._find_ports(context.host)
-            LOG.info("Informacao das portas: %s", str(ports))
             if ports:
                 self._add_ports_to_db(ports, context)
 
@@ -230,9 +189,6 @@ class DatacomDriver(api.MechanismDriver):
 
     def delete_port_precommit(self, context):
         """Within transaction."""
-        if DEBUG2:
-            LOG.info("Dentro do DeletePortPrecommit")
-            LOG.info("Device Owner dentro do delete_port: %s", str(context.current['device_owner']))
         if context.top_bound_segment is not None and str(context.top_bound_segment['network_type']) == "vlan" and \
                 context.current['device_owner'].startswith('compute'):
             ports = self._find_ports(context.host)
@@ -269,13 +225,9 @@ class DatacomDriver(api.MechanismDriver):
                         result = query2.filter_by(vlan=int(context.network.network_segments[0]['segmentation_id']))
 
                         networkId = result.first()
-                        if networkId:
-                            LOG.info("Resultado networkID: %s",networkId[0])
                         result2 = query.filter_by(switch=ip,
                                                     interface=int(port[0].split("/")[1]),
-                                                    network_id=str(networkId[0])).first()
-                        if result2:
-                            LOG.info("result2: %s", str(result2))                            
+                                                    network_id=str(networkId[0])).first()                            
                         if not dcport and not result2:
                             vlan = int(context.network.network_segments[0]['segmentation_id'])
                             switch = str(ip)
